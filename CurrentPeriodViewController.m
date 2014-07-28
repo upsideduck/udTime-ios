@@ -695,10 +695,9 @@
 }
 
 -(void)verifyAndGoNextInSynchQueue{
-    Reachability* reach = [Reachability reachabilityForInternetConnection];
     
 #if !TARGET_IPHONE_SIMULATOR
-    
+    Reachability* reach = [Reachability reachabilityForInternetConnection];
     if([reach currentReachabilityStatus] == NotReachable){
         NSLog(@"No internet");
         return;

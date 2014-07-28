@@ -7,8 +7,9 @@
 //
 
 #import "Againstworktime.h"
+#import "AWProtocol.h"
 
-@interface Againstworktime (udtime)
+@interface Againstworktime (udtime) <accessAsworkAndAgainstworkItems>
 + (Againstworktime *)againstworktimeWithServerInfo:(NSDictionary *)againstworktimeDictionary
                             inManagedObjectContext:(NSManagedObjectContext *)context;
 

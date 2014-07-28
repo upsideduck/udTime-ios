@@ -98,7 +98,6 @@
                          [Month monthWithServerInfo:monthDict inManagedObjectContext:threadMOC];
                      }
                      
-                     [[NSNotificationCenter defaultCenter] postNotificationName:@"monthStatsUpdated" object:self];
                  }
                  
                  //****************************
@@ -133,7 +132,6 @@
                          [Week weekWithServerInfo:weekDict inManagedObjectContext:threadMOC];
                      }
                      
-                     [[NSNotificationCenter defaultCenter] postNotificationName:@"weekStatsUpdated" object:self];
                      
                      
                  }
@@ -223,6 +221,9 @@
     dispatch_async(dispatch_get_main_queue(), ^{
         [moc mergeChangesFromContextDidSaveNotification:notification];
         NSLog(@"Merged");
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"monthStatsUpdated" object:self];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"weekStatsUpdated" object:self];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"periodsStatsUpdated" object:self];
     });
 
     

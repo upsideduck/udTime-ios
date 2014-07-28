@@ -7,8 +7,9 @@
 //
 
 #import "Asworktime.h"
+#import "AWProtocol.h"
 
-@interface Asworktime (udtime)
+@interface Asworktime (udtime) <accessAsworkAndAgainstworkItems>
 + (Asworktime *)asworktimeWithServerInfo:(NSDictionary *)asworktimeDictionary
                   inManagedObjectContext:(NSManagedObjectContext *)context;
 

@@ -14,6 +14,7 @@
 #import "Againstworktime.h"
 #import "WorkEditTVC.h"
 #import "Time.h"
+#import "AWEditTVC.h"
 
 @interface WeekDetailTVC ()
 @property (nonatomic, strong) NSArray *workArr;
@@ -57,7 +58,31 @@
             wetvc.managedObjectContext = self.managedObjectContext;
         }
         
+    }else  if ([[segue identifier] isEqualToString:@"Edit AW"]){
+        // Get reference to the destination view controller
+        AWEditTVC *awetvc = [segue destinationViewController];
+        
+        // Pass any objects to the view controller here, like...
+        
+        if([sender isKindOfClass:[UITableViewCell class]]) {
+            // wdtvc.managedObjectContext = self.managedObjectContext;
+            NSIndexPath *indexPath = [self.tableView indexPathForCell:sender];
+            id obj = self.datasource[indexPath.section][indexPath.row];
+            awetvc.awItem = obj;
+            awetvc.managedObjectContext = self.managedObjectContext;
+            if([obj isKindOfClass:[Asworktime class]]){
+                awetvc.type = @"asworktime";
+                NSLog(@"AsWorktime");
+            }else if([obj isKindOfClass:[Againstworktime class]]){
+                awetvc.type = @"againstworktime";
+            }else{
+                NSLog(@"???");
+            }
+            
+        }
+        
     }
+
 }
 
 - (void)viewDidLoad
@@ -78,6 +103,9 @@
     [super viewWillAppear:animated];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleweekStatsUpdated:)                                                     name:@"weekStatsUpdated"
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleperiodsStatsUpdated:)                                                     name:@"periodsStatsUpdated"
                                                object:nil];
     [self reloadStats];
 }
@@ -220,6 +248,10 @@
 }
 - (void)handleweekStatsUpdated:(NSNotification *)note {
     [self.tableView reloadData];
+}
+- (void)handleperiodsStatsUpdated:(NSNotification *)note {
+
+    [self reloadStats];
 }
 
 /*

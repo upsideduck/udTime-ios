@@ -49,4 +49,17 @@
     
     return againstworktime;
 }
+
+-(NSString *)accessType{
+    return self.type;
+}
+-(NSNumber *)accessTime{
+    return self.time;
+}
+-(NSNumber *)accessId{
+    return self.againstworktimeid;
+}
+-(void)setAccessTime:(NSNumber *)time{
+    self.time = time;
+}
 @end

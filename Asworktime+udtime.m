@@ -48,4 +48,17 @@
 
     return asworktime;
 }
+
+-(NSString *)accessType{
+    return self.type;
+}
+-(NSNumber *)accessTime{
+    return self.time;
+}
+-(NSNumber *)accessId{
+    return self.asworktimeid;
+}
+-(void)setAccessTime:(NSNumber *)time{
+    self.time = time;
+}
 @end
