@@ -48,8 +48,8 @@
         self.managedObjectContext = document.managedObjectContext;
 
     }
-
-
+    
+    [self.refreshControl addTarget:self action:@selector(refreshView:) forControlEvents:UIControlEventValueChanged];
 }
 
 -(void)viewDidAppear:(BOOL)animated{
@@ -57,6 +57,15 @@
     if (self.managedObjectContext) {
          [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
     }
+    [self stopRefreshControl:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(stopRefreshControl:)                                                     name:@"stopLoading"
+                                               object:nil];
+}
+
+- (void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     
 }
 
@@ -151,6 +160,49 @@
         return [sectionInfo name];
     } else
         return nil;
+}
+
+#pragma mark - Scene actions
+
+- (void)refreshView:(UIRefreshControl *)sender {
+    // Do something...
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"forceRefreshStats"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    if (self.managedObjectContext) {
+        [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
+    }
+    //[sender endRefreshing];
+    
+}
+- (void)stopRefreshControl:(NSNotification *)note {
+    [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"forceRefreshStats"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    [self.refreshControl endRefreshing];
+}
+
+- (IBAction)addItem:(UIBarButtonItem *)sender
+{
+    
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:@"Add new:" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:nil otherButtonTitles:@"Work",@"Reduced work time",@"As work time", nil];
+    
+    [actionSheet showInView:[UIApplication sharedApplication].keyWindow];
+}
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    switch (buttonIndex) {
+    case 0: //Add work
+            [self performSegueWithIdentifier:@"Add New Work Segue" sender:self];
+        break;
+    case 1: //Add Reduced work time
+
+        break;
+    case 2: //Add as work time
+
+        break;
+    default:
+        break;
+    }
 }
 
 /*

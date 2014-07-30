@@ -33,7 +33,13 @@
     
     //Get last modifications to database.
     //This way only added or updated items will be remembered. If nothing is added, delete might be repeated
-    NSString *modafter = [NSString stringWithFormat:@"%d", (int)[[self timestampOfLastUpdatedPeriodOn:context] timeIntervalSince1970]];
+    
+    NSString *modafter;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"forceRefreshStats"]){
+        modafter = @"0";
+    }else{
+        modafter = [NSString stringWithFormat:@"%d", (int)[[self timestampOfLastUpdatedPeriodOn:context] timeIntervalSince1970]];
+    }
     
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
     NSDictionary *parameters = @{@"action": @"serverupdates,monthtotals,weektotals",
@@ -90,6 +96,9 @@
                      NSArray *newOrUpdatedMonthsTotals;
                      if(latestModifiedMonth == nil){
                          newOrUpdatedMonthsTotals = [NSArray arrayWithArray:monthTotals];
+                     }else if ([[NSUserDefaults standardUserDefaults] boolForKey:@"forceRefreshStats"]){
+                         NSPredicate *monthTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",[NSNumber numberWithDouble:0]];
+                         newOrUpdatedMonthsTotals = [monthTotals filteredArrayUsingPredicate:monthTotalsPredicate];
                      }else{
                          NSPredicate *monthTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",latestModifiedMonth.modifiedtimestamp ];
                          newOrUpdatedMonthsTotals = [monthTotals filteredArrayUsingPredicate:monthTotalsPredicate];
@@ -97,6 +106,8 @@
                      for (NSDictionary *monthDict in newOrUpdatedMonthsTotals) {
                          [Month monthWithServerInfo:monthDict inManagedObjectContext:threadMOC];
                      }
+                     [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"forceRefreshMonthStats"];
+                     [[NSUserDefaults standardUserDefaults] synchronize];
                      
                  }
                  
@@ -124,6 +135,9 @@
                      NSArray *newOrUpdatedWeeksTotals;
                      if(latestModifiedWeek == nil){
                          newOrUpdatedWeeksTotals = [NSArray arrayWithArray:weekTotals];
+                     }else if ([[NSUserDefaults standardUserDefaults] boolForKey:@"forceRefreshStats"]){
+                         NSPredicate *weekTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",[NSNumber numberWithDouble:0] ];
+                         newOrUpdatedWeeksTotals = [weekTotals filteredArrayUsingPredicate:weekTotalsPredicate];
                      }else{
                          NSPredicate *weekTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",latestModifiedWeek.modifiedtimestamp ];
                          newOrUpdatedWeeksTotals = [weekTotals filteredArrayUsingPredicate:weekTotalsPredicate];
@@ -131,7 +145,8 @@
                      for (NSDictionary *weekDict in newOrUpdatedWeeksTotals) {
                          [Week weekWithServerInfo:weekDict inManagedObjectContext:threadMOC];
                      }
-                     
+                     [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"forceRefreshWeekStats"];
+                     [[NSUserDefaults standardUserDefaults] synchronize];
                      
                      
                  }
@@ -205,6 +220,7 @@
              });
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
              
+             [[NSNotificationCenter defaultCenter] postNotificationName:@"stopLoading" object:self];        //just in case
          }];
 }
 
@@ -224,6 +240,7 @@
         [[NSNotificationCenter defaultCenter] postNotificationName:@"monthStatsUpdated" object:self];
         [[NSNotificationCenter defaultCenter] postNotificationName:@"weekStatsUpdated" object:self];
         [[NSNotificationCenter defaultCenter] postNotificationName:@"periodsStatsUpdated" object:self];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"stopLoading" object:self];
     });
 
     

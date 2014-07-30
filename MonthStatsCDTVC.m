@@ -48,7 +48,8 @@
         self.managedObjectContext = document.managedObjectContext;
         
     }
-    
+    [self.refreshControl addTarget:self action:@selector(refreshView:) forControlEvents:UIControlEventValueChanged];
+
     
 }
 
@@ -57,6 +58,16 @@
     if (self.managedObjectContext) {
         [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
     }
+    [self stopRefreshControl:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(stopRefreshControl:)                                                     name:@"stopLoading"
+                                               object:nil];
+}
+
+- (void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
 }
 
 
@@ -160,6 +171,20 @@
         return nil;
 }
 
+- (void)refreshView:(UIRefreshControl *)sender {
+    // Do something...
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"forceRefreshStats"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    if (self.managedObjectContext) {
+        [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
+    }
+    //[sender endRefreshing];
+}
+
+- (void)stopRefreshControl:(NSNotification *)note {
+    
+    [self.refreshControl endRefreshing];
+}
 /*
  
  #pragma mark - Navigation
