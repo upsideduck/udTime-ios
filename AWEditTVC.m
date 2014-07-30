@@ -108,7 +108,7 @@ NSString *againstworktime = @"againstworktime";
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
     NSDictionary *parameters = @{@"action": [NSString stringWithFormat:@"update%@",self.type],
                                  @"id": [[self.awItem accessId] stringValue],
-                                 @"time": [NSString stringWithFormat:@"%ld",[newTime integerValue]],
+                                 @"time": [NSString stringWithFormat:@"%ld",(long)[newTime integerValue]],
                                  @"username": [udTimeServer username],
                                  @"password": [udTimeServer password],
                                  @"output": @"json"};

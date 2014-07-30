@@ -96,7 +96,7 @@
         breakTime += [breakP.endtime timeIntervalSinceDate:breakP.starttime];
     }
     
-    self.breaksCell.detailTextLabel.text = [NSString stringWithFormat:@"%@ (%ld breaks)", [Time secondsToReadableTime:[NSNumber numberWithInteger:breakTime]], self.numberOfBreaks];
+    self.breaksCell.detailTextLabel.text = [NSString stringWithFormat:@"%@ (%ld breaks)", [Time secondsToReadableTime:[NSNumber numberWithInteger:breakTime]], (long)self.numberOfBreaks];
     
     if (self.numberOfBreaks == 0){
         self.breaksCell.accessoryType = UITableViewCellAccessoryNone;
