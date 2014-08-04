@@ -8,12 +8,16 @@
 
 #import <Foundation/Foundation.h>
 
+
 @interface udTimeServer : NSObject
 +(NSString *)password;
 +(NSString *)username;
 
 +(void)synchronizeInternalDBWithServerOn:(NSManagedObjectContext *)context;
++(NSDate *)timestampOfLastUpdatedPeriodOn:(NSManagedObjectContext *)context;
++(void)updateWithServerResponse:(id)responseObject on:context;
 +(BOOL)successOnResult:(id)responseObject onAction:(NSString *)action;
++(void)showServerMessage:(NSString *)message;
 
 #if TARGET_IPHONE_SIMULATOR
 #define API_URL @"http://localhost/~johanadell/time/api/call_api.php"

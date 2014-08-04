@@ -50,178 +50,171 @@
     [manager GET:API_URL
       parameters:parameters
          success:^(AFHTTPRequestOperation *operation, id responseObject) {
-             
-             NSPersistentStoreCoordinator *mainThreadContextStoreCoordinator = [context persistentStoreCoordinator];
-             dispatch_queue_t request_queue = dispatch_queue_create("com.udtime.AddWorkToDatabase", NULL);
-             NSLog(@"Sending to thread");
-             dispatch_async(request_queue, ^{
-                 // Create a new managed object context
-                 // Set its persistent store coordinator
-                 NSManagedObjectContext *threadMOC = [[NSManagedObjectContext alloc] init];
-                 [threadMOC setPersistentStoreCoordinator:mainThreadContextStoreCoordinator];
-                 
-                 // Register for context save changes notification
-                 NSNotificationCenter *notify = [NSNotificationCenter defaultCenter];
-                 [notify addObserver:self
-                            selector:@selector(mergeChanges:)
-                                name:NSManagedObjectContextDidSaveNotification
-                              object:threadMOC];
-                 
-
-             
-                 id loginResult = [responseObject valueForKeyPath:@"results.login"];
-                 if(![loginResult[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]) return;
-                 
-                 
-                 //****************************
-                 //Update month stats
-                 //*******
-                 NSLog(@"Updateing month stats");
-                 id actionResultMS = [responseObject valueForKeyPath:@"results.monthstats"];
-                 if([actionResultMS[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]){
-                     id monthTotals = [responseObject valueForKeyPath:@"stats.monthtotal"];
+            
+                 NSPersistentStoreCoordinator *mainThreadContextStoreCoordinator = [context persistentStoreCoordinator];
+                 dispatch_queue_t request_queue = dispatch_queue_create("com.udtime.AddWorkToDatabase", NULL);
+                 NSLog(@"Sending to thread");
+                 dispatch_async(request_queue, ^{
+                     // Create a new managed object context
+                     // Set its persistent store coordinator
+                     NSManagedObjectContext *threadMOC = [[NSManagedObjectContext alloc] init];
+                     [threadMOC setPersistentStoreCoordinator:mainThreadContextStoreCoordinator];
                      
-                     //Fetch last modified in database
-                     NSFetchRequest *latestmodifiedRequest = [NSFetchRequest fetchRequestWithEntityName:@"Month"];
-                     latestmodifiedRequest.predicate = nil;
-                     latestmodifiedRequest.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"modifiedtimestamp"
-                                                                                             ascending:NO
-                                                                ]];
-                     latestmodifiedRequest.fetchLimit = 1;
+                     // Register for context save changes notification
+                     NSNotificationCenter *notify = [NSNotificationCenter defaultCenter];
+                     [notify addObserver:self
+                                selector:@selector(mergeChanges:)
+                                    name:NSManagedObjectContextDidSaveNotification
+                                  object:threadMOC];
+                     
+                     
+                     [udTimeServer updateWithServerResponse:responseObject on:threadMOC];
                      NSError *error;
-                     NSArray *latestModifiedMonthArray = [threadMOC executeFetchRequest:latestmodifiedRequest error:&error];
-                     
-                     //Sort month totals array from server
-                     Month *latestModifiedMonth = [latestModifiedMonthArray firstObject];
-                     NSArray *newOrUpdatedMonthsTotals;
-                     if(latestModifiedMonth == nil){
-                         newOrUpdatedMonthsTotals = [NSArray arrayWithArray:monthTotals];
-                     }else if ([[NSUserDefaults standardUserDefaults] boolForKey:@"forceRefreshStats"]){
-                         NSPredicate *monthTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",[NSNumber numberWithDouble:0]];
-                         newOrUpdatedMonthsTotals = [monthTotals filteredArrayUsingPredicate:monthTotalsPredicate];
-                     }else{
-                         NSPredicate *monthTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",latestModifiedMonth.modifiedtimestamp ];
-                         newOrUpdatedMonthsTotals = [monthTotals filteredArrayUsingPredicate:monthTotalsPredicate];
-                     }
-                     for (NSDictionary *monthDict in newOrUpdatedMonthsTotals) {
-                         [Month monthWithServerInfo:monthDict inManagedObjectContext:threadMOC];
-                     }
-                     [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"forceRefreshMonthStats"];
-                     [[NSUserDefaults standardUserDefaults] synchronize];
-                     
-                 }
-                 
-                 //****************************
-                 //Update week stats
-                 //*******
-                 NSLog(@"Updateing week stats");
-                 
-                 id actionResultWS = [responseObject valueForKeyPath:@"results.weekstats"];
-                 if([actionResultWS[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]){
-                     id weekTotals = [responseObject valueForKeyPath:@"stats.weektotal"];
-                     
-                     //Fetch last modified in database
-                     NSFetchRequest *latestmodifiedRequest = [NSFetchRequest fetchRequestWithEntityName:@"Week"];
-                     latestmodifiedRequest.predicate = nil;
-                     latestmodifiedRequest.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"modifiedtimestamp"
-                                                                                             ascending:NO
-                                                                ]];
-                     latestmodifiedRequest.fetchLimit = 1;
-                     NSError *error;
-                     NSArray *latestModifiedWeekArray = [threadMOC executeFetchRequest:latestmodifiedRequest error:&error];
-                     
-                     //Sort week totals array from server
-                     Week *latestModifiedWeek = [latestModifiedWeekArray firstObject];
-                     NSArray *newOrUpdatedWeeksTotals;
-                     if(latestModifiedWeek == nil){
-                         newOrUpdatedWeeksTotals = [NSArray arrayWithArray:weekTotals];
-                     }else if ([[NSUserDefaults standardUserDefaults] boolForKey:@"forceRefreshStats"]){
-                         NSPredicate *weekTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",[NSNumber numberWithDouble:0] ];
-                         newOrUpdatedWeeksTotals = [weekTotals filteredArrayUsingPredicate:weekTotalsPredicate];
-                     }else{
-                         NSPredicate *weekTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",latestModifiedWeek.modifiedtimestamp ];
-                         newOrUpdatedWeeksTotals = [weekTotals filteredArrayUsingPredicate:weekTotalsPredicate];
-                     }
-                     for (NSDictionary *weekDict in newOrUpdatedWeeksTotals) {
-                         [Week weekWithServerInfo:weekDict inManagedObjectContext:threadMOC];
-                     }
-                     [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"forceRefreshWeekStats"];
-                     [[NSUserDefaults standardUserDefaults] synchronize];
-                     
-                     
-                 }
-                 
-                 
-                 //****************************
-                 //Update periods
-                 //*******
-                 NSLog(@"Updateing periods");
-                 id actionResultSU = [responseObject valueForKeyPath:@"results.serverupdates"];
-                 if([actionResultSU[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]){
-                     id workDicts = [responseObject valueForKeyPath:@"arrays.work"];
-                     
-                     
-                     for (NSDictionary *workDict in workDicts) {
-                         [Work workWithServerInfo:workDict inManagedObjectContext:threadMOC];
-                     }
-                     
-                     id breakDicts = [responseObject valueForKeyPath:@"arrays.break"];
-                     for (NSDictionary *breakDict in breakDicts) {
-                         [Break breakWithServerInfo:breakDict inManagedObjectContext:threadMOC];
-                     }
-                     
-                     id asworktimeDicts = [responseObject valueForKeyPath:@"arrays.asworktime"];
-                     for (NSDictionary *asworktimeDict in asworktimeDicts) {
-                         [Asworktime asworktimeWithServerInfo:asworktimeDict inManagedObjectContext:threadMOC];
-                     }
-                     
-                     id againstworktimeDicts = [responseObject valueForKeyPath:@"arrays.againstworktime"];
-                     for (NSDictionary *againstworktimeDict in againstworktimeDicts) {
-                         [Againstworktime againstworktimeWithServerInfo:againstworktimeDict inManagedObjectContext:threadMOC];
-                     }
-                     
-                     id deletedDicts = [responseObject valueForKeyPath:@"arrays.deleted"];
-                     for (NSDictionary *deletedDict in deletedDicts) {
-                         NSNumber *unique = [deletedDict objectForKey:@"original_id"];
-                         NSFetchRequest *request;
-                         NSError *error;
-                         
-                         if ([deletedDict[@"type"] isEqualToString:@"work"]) {
-                             request = [NSFetchRequest fetchRequestWithEntityName:@"Work"];
-                             request.predicate = [NSPredicate predicateWithFormat:@"workid==%lu", [unique integerValue]];
-                         }else if ([deletedDict[@"type"] isEqualToString:@"break"]){
-                             request = [NSFetchRequest fetchRequestWithEntityName:@"Break"];
-                             request.predicate = [NSPredicate predicateWithFormat:@"breakid==%lu", [unique integerValue]];
-                         }else if ([deletedDict[@"type"] isEqualToString:@"asworktime"]){
-                             request = [NSFetchRequest fetchRequestWithEntityName:@"Asworktime"];
-                             request.predicate = [NSPredicate predicateWithFormat:@"asworktimeid==%lu", [unique integerValue]];
-                         }else if ([deletedDict[@"type"] isEqualToString:@"againstworktime"]){
-                             request = [NSFetchRequest fetchRequestWithEntityName:@"Againstworktime"];
-                             request.predicate = [NSPredicate predicateWithFormat:@"againstworktimeid==%lu", [unique integerValue]];
-                         }
-                         NSArray *matches = [threadMOC executeFetchRequest:request error:&error];
-                         
-                         if (!matches || error || ([matches count] > 1) || ([matches count] < 1)) {
-                             // handle error
-                         } else  {   //Update
-                             id toBeDeleted = [matches firstObject];
-                             [threadMOC deleteObject:toBeDeleted];
-                         }
-                     }
-                     
-                 }
-                 
-                 
-                 NSError *error;
-                 NSLog(@"Start save");
-                 [threadMOC save:&error];
-                 NSLog(@"End Save");
-                 
-             });
+                     NSLog(@"Start save");
+                     [threadMOC save:&error];
+                     NSLog(@"End Save");
+                  
+             
+                 });
+             
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
              
              [[NSNotificationCenter defaultCenter] postNotificationName:@"stopLoading" object:self];        //just in case
          }];
+}
+
++ (void)updateWithServerResponse:(id)responseObject on:context{
+    id loginResult = [responseObject valueForKeyPath:@"results.login"];
+    if(![loginResult[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]) return;
+
+    //****************************
+    //Update month stats
+    //*******
+    NSLog(@"Updating month stats");
+    id actionResultMS = [responseObject valueForKeyPath:@"results.monthstats"];
+    if([actionResultMS[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]){
+        id monthTotals = [responseObject valueForKeyPath:@"stats.monthtotal"];
+        
+        //Fetch last modified in database
+        NSFetchRequest *latestmodifiedRequest = [NSFetchRequest fetchRequestWithEntityName:@"Month"];
+        latestmodifiedRequest.predicate = nil;
+        latestmodifiedRequest.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"modifiedtimestamp"
+                                                                                ascending:NO
+                                                   ]];
+        latestmodifiedRequest.fetchLimit = 1;
+        NSError *error;
+        NSArray *latestModifiedMonthArray = [context executeFetchRequest:latestmodifiedRequest error:&error];
+        
+        //Sort month totals array from server
+        Month *latestModifiedMonth = [latestModifiedMonthArray firstObject];
+        NSArray *newOrUpdatedMonthsTotals;
+        if(latestModifiedMonth == nil){
+            newOrUpdatedMonthsTotals = [NSArray arrayWithArray:monthTotals];
+        }else if ([[NSUserDefaults standardUserDefaults] boolForKey:@"forceRefreshStats"]){
+            NSPredicate *monthTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",[NSNumber numberWithDouble:0]];
+            newOrUpdatedMonthsTotals = [monthTotals filteredArrayUsingPredicate:monthTotalsPredicate];
+        }else{
+            NSPredicate *monthTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",latestModifiedMonth.modifiedtimestamp ];
+            newOrUpdatedMonthsTotals = [monthTotals filteredArrayUsingPredicate:monthTotalsPredicate];
+        }
+        for (NSDictionary *monthDict in newOrUpdatedMonthsTotals) {
+            [Month monthWithServerInfo:monthDict inManagedObjectContext:context];
+        }
+     }
+    
+    //****************************
+    //Update week stats
+    //*******
+    NSLog(@"Updating week stats");
+    
+    id actionResultWS = [responseObject valueForKeyPath:@"results.weekstats"];
+    if([actionResultWS[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]){
+        id weekTotals = [responseObject valueForKeyPath:@"stats.weektotal"];
+        
+        //Fetch last modified in database
+        NSFetchRequest *latestmodifiedRequest = [NSFetchRequest fetchRequestWithEntityName:@"Week"];
+        latestmodifiedRequest.predicate = nil;
+        latestmodifiedRequest.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"modifiedtimestamp"
+                                                                                ascending:NO
+                                                   ]];
+        latestmodifiedRequest.fetchLimit = 1;
+        NSError *error;
+        NSArray *latestModifiedWeekArray = [context executeFetchRequest:latestmodifiedRequest error:&error];
+        
+        //Sort week totals array from server
+        Week *latestModifiedWeek = [latestModifiedWeekArray firstObject];
+        NSArray *newOrUpdatedWeeksTotals;
+        if(latestModifiedWeek == nil){
+            newOrUpdatedWeeksTotals = [NSArray arrayWithArray:weekTotals];
+        }else if ([[NSUserDefaults standardUserDefaults] boolForKey:@"forceRefreshStats"]){
+            NSPredicate *weekTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",[NSNumber numberWithDouble:0] ];
+            newOrUpdatedWeeksTotals = [weekTotals filteredArrayUsingPredicate:weekTotalsPredicate];
+        }else{
+            NSPredicate *weekTotalsPredicate = [NSPredicate predicateWithFormat:@"modifiedtimestamp >= %@",latestModifiedWeek.modifiedtimestamp ];
+            newOrUpdatedWeeksTotals = [weekTotals filteredArrayUsingPredicate:weekTotalsPredicate];
+        }
+        for (NSDictionary *weekDict in newOrUpdatedWeeksTotals) {
+            [Week weekWithServerInfo:weekDict inManagedObjectContext:context];
+        }
+        
+    }
+    
+    
+    //****************************
+    //Update periods
+    //*******
+    NSLog(@"Updating periods");
+    id actionResultSU = [responseObject valueForKeyPath:@"results.serverupdates"];
+    if([actionResultSU[0] isEqualToNumber:[[NSNumber alloc] initWithInteger:1]]){
+        id workDicts = [responseObject valueForKeyPath:@"arrays.work"];
+        for (NSDictionary *workDict in workDicts) {
+            [Work workWithServerInfo:workDict inManagedObjectContext:context];
+        }
+        
+        id breakDicts = [responseObject valueForKeyPath:@"arrays.break"];
+        for (NSDictionary *breakDict in breakDicts) {
+            [Break breakWithServerInfo:breakDict inManagedObjectContext:context];
+        }
+        
+        id asworktimeDicts = [responseObject valueForKeyPath:@"arrays.asworktime"];
+        for (NSDictionary *asworktimeDict in asworktimeDicts) {
+            [Asworktime asworktimeWithServerInfo:asworktimeDict inManagedObjectContext:context];
+        }
+        
+        id againstworktimeDicts = [responseObject valueForKeyPath:@"arrays.againstworktime"];
+        for (NSDictionary *againstworktimeDict in againstworktimeDicts) {
+            [Againstworktime againstworktimeWithServerInfo:againstworktimeDict inManagedObjectContext:context];
+        }
+        
+        id deletedDicts = [responseObject valueForKeyPath:@"arrays.deleted"];
+        for (NSDictionary *deletedDict in deletedDicts) {
+            NSNumber *unique = [deletedDict objectForKey:@"original_id"];
+            NSFetchRequest *request;
+            NSError *error;
+            
+            if ([deletedDict[@"type"] isEqualToString:@"work"]) {
+                request = [NSFetchRequest fetchRequestWithEntityName:@"Work"];
+                request.predicate = [NSPredicate predicateWithFormat:@"workid==%lu", [unique integerValue]];
+            }else if ([deletedDict[@"type"] isEqualToString:@"break"]){
+                request = [NSFetchRequest fetchRequestWithEntityName:@"Break"];
+                request.predicate = [NSPredicate predicateWithFormat:@"breakid==%lu", [unique integerValue]];
+            }else if ([deletedDict[@"type"] isEqualToString:@"asworktime"]){
+                request = [NSFetchRequest fetchRequestWithEntityName:@"Asworktime"];
+                request.predicate = [NSPredicate predicateWithFormat:@"asworktimeid==%lu", [unique integerValue]];
+            }else if ([deletedDict[@"type"] isEqualToString:@"againstworktime"]){
+                request = [NSFetchRequest fetchRequestWithEntityName:@"Againstworktime"];
+                request.predicate = [NSPredicate predicateWithFormat:@"againstworktimeid==%lu", [unique integerValue]];
+            }
+            NSArray *matches = [context executeFetchRequest:request error:&error];
+            
+            if (!matches || error || ([matches count] > 1) || ([matches count] < 1)) {
+                // handle error
+            } else  {   //Update
+                id toBeDeleted = [matches firstObject];
+                [context deleteObject:toBeDeleted];
+            }
+        }
+    }
 }
 
 + (void)mergeChanges:(NSNotification*)notification
@@ -240,6 +233,7 @@
         [[NSNotificationCenter defaultCenter] postNotificationName:@"monthStatsUpdated" object:self];
         [[NSNotificationCenter defaultCenter] postNotificationName:@"weekStatsUpdated" object:self];
         [[NSNotificationCenter defaultCenter] postNotificationName:@"periodsStatsUpdated" object:self];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"serverSynched" object:self];
         [[NSNotificationCenter defaultCenter] postNotificationName:@"stopLoading" object:self];
     });
 
@@ -283,4 +277,14 @@
     else return NO;
 }
 
++(void)showServerMessage:(NSString *)message{
+    
+    UIAlertView *alert;
+    alert = [[UIAlertView alloc] initWithTitle:@"Error"
+                                       message:message
+                                      delegate:self
+                             cancelButtonTitle:@"OK"
+                             otherButtonTitles:nil];
+    [alert show];
+}
 @end
