@@ -41,14 +41,16 @@ NSString *againstworktime = @"againstworktime";
     [super viewWillAppear:animated];
     self.title = [self.awItem accessType];
     [self reloadStats];
-    
-    // Uncomment the following line to preserve selection between presentations.
-    // self.clearsSelectionOnViewWillAppear = NO;
-    
-    // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-    // self.navigationItem.rightBarButtonItem = self.editButtonItem;
+    NSLog(@"On AWEdit %@",self.managedObjectContext);
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleServerSynched:)                                                     name:@"serverSynched"
+                                               object:nil];
 }
-
+- (void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
+}
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -82,19 +84,17 @@ NSString *againstworktime = @"againstworktime";
              //NSLog(@"%@", responseObject);
              if(![udTimeServer successOnResult:responseObject onAction:@"results.login"]) {
                  NSLog(@"Login error");
+                 [udTimeServer showServerMessage:@"Problem logging in"];
                  return;
              }else if(![udTimeServer successOnResult:responseObject onAction:[NSString stringWithFormat:@"results.remove%@",self.type]]) {
                  NSLog(@"Remove error");
+                 [udTimeServer showServerMessage:@"Could not remove period"];
                  return;
              }
-             [self.managedObjectContext deleteObject:self.awItem];
-             if (self.managedObjectContext) {
-                 [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
-             }
-             [self.navigationController popViewControllerAnimated:YES];
+            [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
              
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-             
+             [udTimeServer showServerMessage:@"Could not reach server"];
              NSLog(@"Major failure");
          }];
 }
@@ -118,21 +118,18 @@ NSString *againstworktime = @"againstworktime";
              //NSLog(@"%@", responseObject);
              if(![udTimeServer successOnResult:responseObject onAction:@"results.login"]) {
                  NSLog(@"Login error");
+                 [udTimeServer showServerMessage:@"Problem logging in"];
                  return;
              }else if(![udTimeServer successOnResult:responseObject onAction:[NSString stringWithFormat:@"results.update%@",self.type]]) {
                  NSLog(@"Update error");
+                 [udTimeServer showServerMessage:@"Could not update period"];
                  return;
              }
              
-             //First do a manual update if eveything successfull then sync with server
-             [self.awItem setAccessTime:newTime];
-             if (self.managedObjectContext) {
-                 [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
-             }
-             [self.navigationController popViewControllerAnimated:YES];
+             [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
              
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-             
+             [udTimeServer showServerMessage:@"Could not reach server"];
              NSLog(@"Major failure");
          }];
 }
@@ -236,6 +233,8 @@ NSString *againstworktime = @"againstworktime";
         self.saveButton.enabled = YES;
     
 }
-
+- (void)handleServerSynched:(NSNotification *)note {
+    [self.navigationController popViewControllerAnimated:YES];
+}
 
 @end

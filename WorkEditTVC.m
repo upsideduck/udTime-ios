@@ -7,6 +7,7 @@
 //
 
 #import "WorkEditTVC.h"
+#import "BreakAddTVC.h"
 #import "Break.h"
 #import "BreaksForWorkTVC.h"
 #import "Time.h"
@@ -30,6 +31,7 @@
 #define kStarttimePickerIndex 1
 #define kEndtimePickerIndex 3
 #define kPickerCellHeight 162
+#define kStandardCellHeight 44
 
 - (id)initWithStyle:(UITableViewStyle)style
 {
@@ -57,8 +59,16 @@
 - (void) viewWillAppear:(BOOL)animated{
     [super viewWillAppear:animated];
     [self reloadStats];
+    NSLog(@"On WorkEdit %@",self.managedObjectContext);
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleServerSynched:)                                                     name:@"serverSynched"
+                                               object:nil];
 }
-
+- (void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
+}
 -(BOOL)shouldPerformSegueWithIdentifier:(NSString *)identifier sender:(id)sender{
     if ([identifier isEqualToString:@"List Breaks"] && self.numberOfBreaks > 0){
         return YES;
@@ -79,6 +89,15 @@
         // Pass any objects to the view controller here, like...
         bfwtvc.managedObjectContext = self.managedObjectContext;
         
+    }else if ([[segue identifier] isEqualToString:@"Add New Break Segue"]){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        BreakAddTVC *batvc = (BreakAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        batvc.managedObjectContext = self.managedObjectContext;
+        
+        batvc.lowerDateLimit = self.work.starttime;
+        batvc.upperDateLimit = self.work.endtime;
     }
 }
 
@@ -112,7 +131,7 @@
     [dateTimeformatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
     NSDate *starttime = [dateTimeformatter dateFromString:self.starttimeCell.detailTextLabel.text];
     NSDate *endtime = [dateTimeformatter dateFromString:self.endtimeCell.detailTextLabel.text];
-    
+    //NSString *modafter = [NSString stringWithFormat:@"%d", (int)[[udTimeServer timestampOfLastUpdatedPeriodOn:self.managedObjectContext] timeIntervalSince1970]];
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
     NSDictionary *parameters = @{@"action": @"updatework",
                                  @"id": [self.work.workid stringValue],
@@ -127,28 +146,29 @@
              //NSLog(@"%@", responseObject);
              if(![udTimeServer successOnResult:responseObject onAction:@"results.login"]) {
                  NSLog(@"Login error");
+                 [udTimeServer showServerMessage:@"Problem logging in"];
                  return;
              }else if(![udTimeServer successOnResult:responseObject onAction:@"results.updatework"]) {
+                 [udTimeServer showServerMessage:@"Could not update work"];
                  NSLog(@"Update error");
                  return;
              }
              
              //First do a manual update if eveything successfull then sync with server
-             self.work.starttime = starttime;
-             self.work.endtime = endtime;
-             if (self.managedObjectContext) {
-                 [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
-             }
-             [self.navigationController popViewControllerAnimated:YES];
+            [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
              
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-             
+             [udTimeServer showServerMessage:@"Could not reach server"];
              NSLog(@"Major failure");
          }];
 }
 
+- (IBAction)addBreak:(UIButton *)sender{
+    [self performSegueWithIdentifier:@"Add New Break Segue" sender:self];
+}
 
 - (IBAction)delteWork:(UIButton *)sender{
+   // NSString *modafter = [NSString stringWithFormat:@"%d", (int)[[udTimeServer timestampOfLastUpdatedPeriodOn:self.managedObjectContext] timeIntervalSince1970]];
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
     NSDictionary *parameters = @{@"action": @"removework",
                                  @"id": [self.work.workid stringValue],
@@ -161,20 +181,17 @@
              //NSLog(@"%@", responseObject);
              if(![udTimeServer successOnResult:responseObject onAction:@"results.login"]) {
                  NSLog(@"Login error");
+                 [udTimeServer showServerMessage:@"Problem logging in"];
                  return;
              }else if(![udTimeServer successOnResult:responseObject onAction:@"results.removework"]) {
                  NSLog(@"Remove error");
+                 [udTimeServer showServerMessage:@"Could not remove work"];
                  return;
              }
-             
-             [self.managedObjectContext deleteObject:self.work];
-             if (self.managedObjectContext) {
-                 [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
-             }
-             [self.navigationController popViewControllerAnimated:YES];
+             [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
              
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-             
+            [udTimeServer showServerMessage:@"Could not reach server"];
              NSLog(@"Major failure");
          }];
 }
@@ -186,20 +203,23 @@
 }
 
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (indexPath.row == (kStarttimePickerIndex - 1)){
+    if (indexPath.row == (kStarttimePickerIndex - 1) && indexPath.section == 0){
         if (self.starttimePickerIsShowing){
             [self hidePickerCellAt:kStarttimePickerIndex];
         }else {
             [self showPickerCellAt:kStarttimePickerIndex];
         }
         [self hidePickerCellAt:kEndtimePickerIndex];
-    }else if (indexPath.row == (kEndtimePickerIndex - 1)){
+    }else if (indexPath.row == (kEndtimePickerIndex - 1) && indexPath.section == 0){
         if (self.endtimePickerIsShowing){
             [self hidePickerCellAt:kEndtimePickerIndex];
         }else {
             [self showPickerCellAt:kEndtimePickerIndex];
         }
         [self hidePickerCellAt:kStarttimePickerIndex];
+    }else{
+        [self hidePickerCellAt:kStarttimePickerIndex];
+        [self hidePickerCellAt:kEndtimePickerIndex];
     }
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
@@ -254,13 +274,13 @@
 
 -(CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     
-    CGFloat height = self.tableView.rowHeight;
+    CGFloat height = kStandardCellHeight;
     
-    if (indexPath.row == kStarttimePickerIndex){
+    if (indexPath.row == kStarttimePickerIndex && indexPath.section == 0){
         
         height = self.starttimePickerIsShowing ? kPickerCellHeight : 0.0f;
         
-    }else if(indexPath.row == kEndtimePickerIndex){
+    }else if(indexPath.row == kEndtimePickerIndex && indexPath.section == 0){
         
         height = self.endtimePickerIsShowing ? kPickerCellHeight : 0.0f;
     }
@@ -292,5 +312,10 @@
     
     
 }
+
+- (void)handleServerSynched:(NSNotification *)note {
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
 
 @end

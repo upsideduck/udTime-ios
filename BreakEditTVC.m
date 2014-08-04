@@ -25,6 +25,7 @@
 #define kStarttimePickerIndex 1
 #define kEndtimePickerIndex 3
 #define kPickerCellHeight 162
+#define kStandardCellHeight 44
 
 - (id)initWithStyle:(UITableViewStyle)style
 {
@@ -53,6 +54,15 @@
     [super viewWillAppear:animated];
     
     [self reloadStats];
+    NSLog(@"On BreaksEdit %@",self.managedObjectContext);
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleServerSynched:)                                                     name:@"serverSynched"
+                                               object:nil];
+}
+- (void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
 }
 
 
@@ -67,6 +77,7 @@
 
 
 - (IBAction)delteBreak:(UIButton *)sender{
+    //NSString *modafter = [NSString stringWithFormat:@"%d", (int)[[udTimeServer timestampOfLastUpdatedPeriodOn:self.managedObjectContext] timeIntervalSince1970]];
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
     NSDictionary *parameters = @{@"action": @"removebreak",
                                  @"id": [self.breakItem.breakid stringValue],
@@ -79,19 +90,18 @@
              //NSLog(@"%@", responseObject);
              if(![udTimeServer successOnResult:responseObject onAction:@"results.login"]) {
                  NSLog(@"Login error");
+                 [udTimeServer showServerMessage:@"Problem logging in"];
                  return;
              }else if(![udTimeServer successOnResult:responseObject onAction:@"results.removebreak"]) {
                  NSLog(@"Remove error");
+                 [udTimeServer showServerMessage:@"Could not remove break"];
                  return;
              }
-             [self.managedObjectContext deleteObject:self.breakItem];
-             if (self.managedObjectContext) {
-                 [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
-             }
-             [self.navigationController popViewControllerAnimated:YES];
+
+             [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
             
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-  
+             [udTimeServer showServerMessage:@"Could not reach server"];
              NSLog(@"Major failure");
          }];
 }
@@ -103,7 +113,7 @@
     [dateTimeformatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
     NSDate *starttime = [dateTimeformatter dateFromString:self.starttimeCell.detailTextLabel.text];
     NSDate *endtime = [dateTimeformatter dateFromString:self.endtimeCell.detailTextLabel.text];
-    
+    //NSString *modafter = [NSString stringWithFormat:@"%d", (int)[[udTimeServer timestampOfLastUpdatedPeriodOn:self.managedObjectContext] timeIntervalSince1970]];
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
     NSDictionary *parameters = @{@"action": @"updatebreak",
                                  @"id": [self.breakItem.breakid stringValue],
@@ -118,22 +128,18 @@
              //NSLog(@"%@", responseObject);
              if(![udTimeServer successOnResult:responseObject onAction:@"results.login"]) {
                  NSLog(@"Login error");
+                 [udTimeServer showServerMessage:@"Problem logging in"];
                  return;
              }else if(![udTimeServer successOnResult:responseObject onAction:@"results.updatebreak"]) {
                  NSLog(@"Update error");
+                 [udTimeServer showServerMessage:@"Could not update break"];
                  return;
              }
             
-             //First do a manual update if eveything successfull then sync with server
-             self.breakItem.starttime = starttime;
-             self.breakItem.endtime = endtime;
-             if (self.managedObjectContext) {
-                 [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
-             }
-             [self.navigationController popViewControllerAnimated:YES];
+             [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
              
          } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-             
+             [udTimeServer showServerMessage:@"Could not reach server"];
              NSLog(@"Major failure");
          }];
 }
@@ -207,13 +213,13 @@
 
 -(CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     
-    CGFloat height = self.tableView.rowHeight;
+    CGFloat height = kStandardCellHeight;
     
-    if (indexPath.row == kStarttimePickerIndex){
+    if (indexPath.row == kStarttimePickerIndex && indexPath.section == 0){
         
         height = self.starttimePickerIsShowing ? kPickerCellHeight : 0.0f;
         
-    }else if(indexPath.row == kEndtimePickerIndex){
+    }else if(indexPath.row == kEndtimePickerIndex && indexPath.section == 0){
         
         height = self.endtimePickerIsShowing ? kPickerCellHeight : 0.0f;
     }
@@ -244,5 +250,9 @@
         self.saveButton.enabled = YES;
 
     
+}
+
+- (void)handleServerSynched:(NSNotification *)note {
+    [self.navigationController popViewControllerAnimated:YES];
 }
 @end
