@@ -7,6 +7,8 @@
 //
 
 #import "MonthDetailTVC.h"
+#import "WorkAddTVC.h"
+#import "AWAddTVC.h"
 #import "AppDelegate.h"
 #import "Work.h"
 #import "Break.h"
@@ -50,36 +52,7 @@
         
     }
     
-    self.workArr = [[self.month.workperiods allObjects] sortedArrayUsingDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"starttime"
-                                                                                                                 ascending:YES]]];
-    self.asworktimeArr = [[self.month.asworktimeperiods allObjects] sortedArrayUsingDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"date"
-                                                                                                                             ascending:YES]]];
-    self.againstworktimeArr = [[self.month.againstworktimeperiods allObjects] sortedArrayUsingDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"date"
-    
-                                                                                                                                        ascending:YES]]];
-    self.sections = [self datesOfMonthNumber:[self.month.month integerValue] ofYearNumber:[self.month.year integerValue]];
-    
-    for (int i = 0; i < [self.sections count]; i++) {
-        [self.datasource addObject:[[NSMutableArray alloc] init]];
-    }
-    
-    for (int i = 0; i < [self.sections count]; i++) {
-        for (Againstworktime *aw in self.againstworktimeArr) {
-            if([self isSameDayWithDate1:aw.date date2:self.sections[i]]){
-                [self.datasource[i] addObject:aw];
-            }
-        }
-        for (Asworktime *as in self.asworktimeArr) {
-            if([self isSameDayWithDate1:as.date date2:self.sections[i]]){
-                [self.datasource[i] addObject:as];
-            }
-        }
-        for (Work *work in self.workArr) {
-            if([self isSameDayWithDate1:work.starttime date2:self.sections[i]]){
-                [self.datasource[i] addObject:work];
-            }
-        }
-    }
+   
 }
 
 - (void)viewWillAppear:(BOOL)animated{
@@ -90,6 +63,7 @@
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleperiodsStatsUpdated:)                                                     name:@"periodsStatsUpdated"
                                                object:nil];
+    [self reloadStats];
 }
 
 - (void)viewWillDisappear:(BOOL)animated{
@@ -100,6 +74,9 @@
 
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
+    
+    NSArray *datesInMonth = [self datesOfMonthNumber:[self.month.month integerValue] ofYearNumber:[self.month.year integerValue]];
+    
     // Make sure your segue name in storyboard is the same as this line
     if ([[segue identifier] isEqualToString:@"Edit Work"])
     {
@@ -138,10 +115,97 @@
             }
             
         }
+    }else if ([[segue identifier] isEqualToString:@"Add New Work Segue"]){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        WorkAddTVC *watvc = (WorkAddTVC *)[uinc viewControllers][0];
+        
+        // Pass any objects to the view controller here, like...
+        watvc.managedObjectContext = self.managedObjectContext;
+        
+        watvc.lowerDateLimit = [datesInMonth firstObject];
+        watvc.upperDateLimit = [[datesInMonth lastObject] dateByAddingTimeInterval:60*60*24];
+    }else if ([[segue identifier] isEqualToString:@"Add New AW Segue"] && [sender integerValue] == 1){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        AWAddTVC *awatvc = (AWAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        awatvc.managedObjectContext = self.managedObjectContext;
+        awatvc.mainType = @"againstworktime";
+        awatvc.lowerDateLimit = [datesInMonth firstObject];
+        awatvc.upperDateLimit = [[datesInMonth lastObject] dateByAddingTimeInterval:60*60*24];
+    }else if ([[segue identifier] isEqualToString:@"Add New AW Segue"] && [sender integerValue] == 2){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        AWAddTVC *awatvc = (AWAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        awatvc.managedObjectContext = self.managedObjectContext;
+        awatvc.mainType = @"asworktime";
+        awatvc.lowerDateLimit = [datesInMonth firstObject];
+        awatvc.upperDateLimit = [[datesInMonth lastObject] dateByAddingTimeInterval:60*60*24];
     }
 }
 
+- (IBAction)addItem:(UIBarButtonItem *)sender
+{
+    
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:@"Add new:" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:nil otherButtonTitles:@"Work",@"Reduced work time",@"As work time", nil];
+    
+    [actionSheet showInView:[UIApplication sharedApplication].keyWindow];
+}
 
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    switch (buttonIndex) {
+        case 0: //Add work
+            [self performSegueWithIdentifier:@"Add New Work Segue" sender:self];
+            break;
+        case 1: //Add Reduced work time
+            [self performSegueWithIdentifier:@"Add New AW Segue" sender:[NSNumber numberWithInteger:buttonIndex]];
+            break;
+        case 2: //Add as work time
+            [self performSegueWithIdentifier:@"Add New AW Segue" sender:[NSNumber numberWithInteger:buttonIndex]];
+            break;
+        default:
+            break;
+    }
+}
+
+-(void)reloadStats{
+     self.datasource = nil;  //reset datasource
+    
+    self.workArr = [[self.month.workperiods allObjects] sortedArrayUsingDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"starttime"
+                                                                                                                  ascending:YES]]];
+    self.asworktimeArr = [[self.month.asworktimeperiods allObjects] sortedArrayUsingDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"date"
+                                                                                                                              ascending:YES]]];
+    self.againstworktimeArr = [[self.month.againstworktimeperiods allObjects] sortedArrayUsingDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"date"
+                                                                                                             
+                                                                                                                                        ascending:YES]]];
+    self.sections = [self datesOfMonthNumber:[self.month.month integerValue] ofYearNumber:[self.month.year integerValue]];
+    
+    for (int i = 0; i < [self.sections count]; i++) {
+        [self.datasource addObject:[[NSMutableArray alloc] init]];
+    }
+    
+    for (int i = 0; i < [self.sections count]; i++) {
+        for (Againstworktime *aw in self.againstworktimeArr) {
+            if([self isSameDayWithDate1:aw.date date2:self.sections[i]]){
+                [self.datasource[i] addObject:aw];
+            }
+        }
+        for (Asworktime *as in self.asworktimeArr) {
+            if([self isSameDayWithDate1:as.date date2:self.sections[i]]){
+                [self.datasource[i] addObject:as];
+            }
+        }
+        for (Work *work in self.workArr) {
+            if([self isSameDayWithDate1:work.starttime date2:self.sections[i]]){
+                [self.datasource[i] addObject:work];
+            }
+        }
+    }
+    [self.tableView reloadData];
+}
 
 - (NSArray *)datesOfMonthNumber:(NSInteger)monthNumber ofYearNumber:(NSInteger)yearNumber {
     
@@ -248,7 +312,7 @@
 
 - (void)handleperiodsStatsUpdated:(NSNotification *)note {
     
-    [self.tableView reloadData];
+    [self reloadStats];
 }
 /*
 #pragma mark - Navigation

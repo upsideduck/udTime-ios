@@ -7,6 +7,7 @@
 //
 
 #import "BreaksForWorkTVC.h"
+#import "BreakAddTVC.h"
 #import "Break.h"
 #import "Time.h"
 #import "BreakEditTVC.h"
@@ -47,6 +48,7 @@
     [super viewWillAppear:animated];
     
     [self.tableView reloadData];
+    NSLog(@"On BreaksForWork %@",self.managedObjectContext);
     //if ([self.work.breaks count] == 0) [self.navigationController popViewControllerAnimated:YES];   //jump back one more level
 }
 
@@ -67,6 +69,15 @@
         betvc.breakItem = [self.breaks objectAtIndex:indexPath.row];
         // Pass any objects to the view controller here, like...
         betvc.managedObjectContext = self.managedObjectContext;
+    }else if ([[segue identifier] isEqualToString:@"Add New Break Segue"]){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        BreakAddTVC *batvc = (BreakAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        batvc.managedObjectContext = self.managedObjectContext;
+        
+        batvc.lowerDateLimit = self.work.starttime;
+        batvc.upperDateLimit = self.work.endtime;
     }
 }
 

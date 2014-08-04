@@ -8,6 +8,8 @@
 
 #import "MonthStatsCDTVC.h"
 #import "MonthDetailTVC.h"
+#import "AWAddTVC.h"
+#import "WorkAddTVC.h"
 #import "Month.h"
 #import "AppDelegate.h"
 #import "AFNetworking.h"
@@ -56,9 +58,8 @@
 -(void)viewDidAppear:(BOOL)animated{
     [super viewDidAppear:animated];
     if (self.managedObjectContext) {
-        [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
+        //[udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
     }
-    [self stopRefreshControl:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(stopRefreshControl:)                                                     name:@"stopLoading"
                                                object:nil];
@@ -66,6 +67,7 @@
 
 - (void)viewWillDisappear:(BOOL)animated{
     [super viewWillDisappear:animated];
+    [self stopRefreshControl:nil];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     
 }
@@ -88,6 +90,26 @@
             mditvc.managedObjectContext = self.managedObjectContext;
         }
         
+    }else if ([[segue identifier] isEqualToString:@"Add New Work Segue"]){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        WorkAddTVC *watvc = (WorkAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        watvc.managedObjectContext = self.managedObjectContext;
+    }else if ([[segue identifier] isEqualToString:@"Add New AW Segue"] && [sender integerValue] == 1){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        AWAddTVC *awatvc = (AWAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        awatvc.managedObjectContext = self.managedObjectContext;
+        awatvc.mainType = @"againstworktime";
+    }else if ([[segue identifier] isEqualToString:@"Add New AW Segue"] && [sender integerValue] == 2){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        AWAddTVC *awatvc = (AWAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        awatvc.managedObjectContext = self.managedObjectContext;
+        awatvc.mainType = @"asworktime";
     }
 }
 
@@ -176,7 +198,7 @@
     [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"forceRefreshStats"];
     [[NSUserDefaults standardUserDefaults] synchronize];
     if (self.managedObjectContext) {
-        [udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
+        //[udTimeServer synchronizeInternalDBWithServerOn:self.managedObjectContext];
     }
     //[sender endRefreshing];
 }
@@ -185,6 +207,32 @@
     
     [self.refreshControl endRefreshing];
 }
+
+- (IBAction)addItem:(UIBarButtonItem *)sender
+{
+    
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:@"Add new:" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:nil otherButtonTitles:@"Work",@"Reduced work time",@"As work time", nil];
+    
+    [actionSheet showInView:[UIApplication sharedApplication].keyWindow];
+}
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    switch (buttonIndex) {
+        case 0: //Add work
+            [self performSegueWithIdentifier:@"Add New Work Segue" sender:self];
+            break;
+        case 1: //Add Reduced work time
+            [self performSegueWithIdentifier:@"Add New AW Segue" sender:[NSNumber numberWithInteger:buttonIndex]];
+            break;
+        case 2: //Add as work time
+            [self performSegueWithIdentifier:@"Add New AW Segue" sender:[NSNumber numberWithInteger:buttonIndex]];
+            break;
+        default:
+            break;
+    }
+}
+
 /*
  
  #pragma mark - Navigation

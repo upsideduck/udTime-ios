@@ -7,6 +7,7 @@
 //
 
 #import "WeekDetailTVC.h"
+#import "AWAddTVC.h"
 #import "AppDelegate.h"
 #import "Work.h"
 #import "Break.h"
@@ -15,6 +16,7 @@
 #import "WorkEditTVC.h"
 #import "Time.h"
 #import "AWEditTVC.h"
+#import "WorkAddTVC.h"
 
 @interface WeekDetailTVC ()
 @property (nonatomic, strong) NSArray *workArr;
@@ -42,6 +44,16 @@
 
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
+    
+    NSDateComponents *comp = [[NSDateComponents alloc] init];
+    [comp setWeekOfYear:[self.week.week integerValue]];
+    [comp setYear:[self.week.year integerValue]];
+    [comp setHour:0];
+    [comp setWeekday:2];
+    
+    NSCalendar * calendar = [NSCalendar currentCalendar];
+    //[calendar setTimeZone:[NSTimeZone timeZoneWithName:@"GMT"]];
+    
     // Make sure your segue name in storyboard is the same as this line
     if ([[segue identifier] isEqualToString:@"Edit Work"])
     {
@@ -78,9 +90,36 @@
             }else{
                 NSLog(@"???");
             }
-            
         }
+    }else if ([[segue identifier] isEqualToString:@"Add New Work Segue"]){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        WorkAddTVC *watvc = (WorkAddTVC *)[uinc viewControllers][0];
         
+        // Pass any objects to the view controller here, like...
+        watvc.managedObjectContext = self.managedObjectContext;
+        
+        watvc.lowerDateLimit = [calendar dateFromComponents:comp];
+        watvc.upperDateLimit = [NSDate dateWithTimeIntervalSince1970:([[calendar dateFromComponents:comp] timeIntervalSince1970] + 60*60*24*7)];
+    }else if ([[segue identifier] isEqualToString:@"Add New AW Segue"] && [sender integerValue] == 1){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        AWAddTVC *awatvc = (AWAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        awatvc.managedObjectContext = self.managedObjectContext;
+        awatvc.mainType = @"againstworktime";
+        awatvc.lowerDateLimit = [calendar dateFromComponents:comp];
+        awatvc.upperDateLimit = [NSDate dateWithTimeIntervalSince1970:([[calendar dateFromComponents:comp] timeIntervalSince1970] + 60*60*24*7)];
+    }else if ([[segue identifier] isEqualToString:@"Add New AW Segue"] && [sender integerValue] == 2){
+        // Get reference to the destination view controller
+        UINavigationController *uinc = [segue destinationViewController];
+        AWAddTVC *awatvc = (AWAddTVC *)[uinc viewControllers][0];
+        // Pass any objects to the view controller here, like...
+        awatvc.managedObjectContext = self.managedObjectContext;
+        awatvc.mainType = @"asworktime";
+        awatvc.lowerDateLimit = [calendar dateFromComponents:comp];
+        awatvc.upperDateLimit = [NSDate dateWithTimeIntervalSince1970:([[calendar dateFromComponents:comp] timeIntervalSince1970] + 60*60*24*7)];
+
     }
 
 }
@@ -108,6 +147,7 @@
                                              selector:@selector(handleperiodsStatsUpdated:)                                                     name:@"periodsStatsUpdated"
                                                object:nil];
     [self reloadStats];
+    NSLog(@"On WeekDet %@",self.managedObjectContext);
 }
 
 - (void)viewWillDisappear:(BOOL)animated{
@@ -148,6 +188,31 @@
         }
     }
     [self.tableView reloadData];
+}
+
+- (IBAction)addItem:(UIBarButtonItem *)sender
+{
+    
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:@"Add new:" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:nil otherButtonTitles:@"Work",@"Reduced work time",@"As work time", nil];
+    
+    [actionSheet showInView:[UIApplication sharedApplication].keyWindow];
+}
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    switch (buttonIndex) {
+        case 0: //Add work
+            [self performSegueWithIdentifier:@"Add New Work Segue" sender:self];
+            break;
+        case 1: //Add Reduced work time
+            [self performSegueWithIdentifier:@"Add New AW Segue" sender:[NSNumber numberWithInteger:buttonIndex]];
+            break;
+        case 2: //Add as work time
+            [self performSegueWithIdentifier:@"Add New AW Segue" sender:[NSNumber numberWithInteger:buttonIndex]];
+            break;
+        default:
+            break;
+    }
 }
 
 - (NSArray *)datesOfWeekNumber:(NSInteger)weeknumber ofYearNumber:(NSInteger)yearNumber {

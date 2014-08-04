@@ -8,7 +8,7 @@
 
 #import "Week.h"
 
-@interface WeekDetailTVC : UITableViewController
+@interface WeekDetailTVC : UITableViewController <UIActionSheetDelegate>
 @property (nonatomic, strong) Week *week;
 @property (nonatomic, strong) NSManagedObjectContext *managedObjectContext;
 @end

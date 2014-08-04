@@ -8,7 +8,7 @@
 
 #import "CoreDataTableViewController.h"
 
-@interface MonthStatsCDTVC : CoreDataTableViewController
+@interface MonthStatsCDTVC : CoreDataTableViewController <UIActionSheetDelegate>
 @property (nonatomic, strong) NSManagedObjectContext *managedObjectContext;
 
 @end

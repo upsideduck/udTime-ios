@@ -41,7 +41,7 @@
     work.starttime = [NSDate dateWithTimeIntervalSince1970:[[f numberFromString:workDictionary[@"starttime"]] integerValue]];
     work.endtime = [NSDate dateWithTimeIntervalSince1970:[[f numberFromString:workDictionary[@"endtime"]] integerValue]];
     work.modified = [NSDate dateWithTimeIntervalSince1970:[[f numberFromString:workDictionary[@"modified"]] integerValue]];
-    //work.comment = workDictionary[@"comment"];
+    //§ = workDictionary[@"comment"];
     
     work.parentweek = [Week weekOfYearForDate:work.starttime inManagedObjectContext:context];
     work.parentMonth = [Month monthOfYearForDate:work.starttime inManagedObjectContext:context];
